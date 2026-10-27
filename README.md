@@ -119,9 +119,10 @@ The API runs the job worker in-process because Koyeb's free instance cannot be a
    .\.venv\Scripts\python.exe seed.py   # optional synthetic demo data
    ```
 
-2. **API — Koyeb.** Create a Web Service from this repository with Dockerfile
-   `apps/api/Dockerfile`, instance type `free`, region `fra` (Frankfurt), port `8000`, and an
-   HTTP health check on `/ready`. Set:
+2. **API — Koyeb.** Create a Web Service from this repository. Set the build context / work
+   directory to `apps/api` and the Dockerfile to `Dockerfile` (the image expects that context),
+   instance type `free`, region `fra` (Frankfurt), port `8000`, and an HTTP health check on
+   `/ready`. Set:
 
    | Variable | Value |
    |---|---|
