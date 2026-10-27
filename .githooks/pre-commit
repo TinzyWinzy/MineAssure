@@ -1,0 +1,36 @@
+#!/bin/sh
+# Enforce formatting on staged web + api changes.
+# Enable once per clone:  git config core.hooksPath .githooks
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+web=$(printf '%s\n' "$staged" | grep -E '^apps/web/.*\.(ts|tsx|css)$' || true)
+if [ -n "$web" ]; then
+  if ! ( cd apps/web && npx --no-install prettier --check "src/**/*.{ts,tsx,css}" index.html ); then
+    echo ""
+    echo "Web formatting check failed. Run: (cd apps/web && npm run format)"
+    exit 1
+  fi
+fi
+
+py=$(printf '%s\n' "$staged" | grep -E '^apps/api/.*\.py$' || true)
+if [ -n "$py" ]; then
+  if [ -f apps/api/.venv/bin/python ]; then
+    PYTHON=.venv/bin/python
+  elif [ -f apps/api/.venv/Scripts/python.exe ]; then
+    PYTHON=.venv/Scripts/python.exe
+  else
+    PYTHON=""
+  fi
+  if [ -n "$PYTHON" ]; then
+    if ! ( cd apps/api && "$PYTHON" -m ruff format --check app tests ); then
+      echo ""
+      echo "Python formatting check failed. Run: (cd apps/api && .venv/Scripts/python.exe -m ruff format app tests)"
+      exit 1
+    fi
+  fi
+fi
+
+exit 0

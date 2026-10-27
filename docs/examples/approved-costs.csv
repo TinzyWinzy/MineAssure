@@ -1,0 +1,2 @@
+batch_id,organisation,site,contractor,invoice,line,work_code,service_date,currency,amount_minor,run_id,approval_id,input_hash
+a0ec6248-2bb4-43fa-b57d-80d97108e650,org-demo,site-1,ctr-1,E2E-INV-0cf1f7c6,1,EQ-HIRE,2026-10-10,USD,3000000,24f90de2-c68d-42f8-8a71-8dc4142238b5,96682130-f03e-4b87-89da-6ea3b471cef0,d1831e2f65965ea2b37681df680eca6b6c7e2dda5f3c536363e484b9d2873a82
