@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     api_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173"
+    worker_in_process: bool = False
+    worker_poll_seconds: int = 15
 
     @model_validator(mode="after")
     def _require_secrets_in_production(self):

@@ -104,6 +104,45 @@ CI (`.github/workflows/ci.yml`) runs on every push and pull request:
 - **api** — `ruff check`, `ruff format --check`
 - **api-tests** — `pytest` against a PostgreSQL 16 service container
 
+## Free-tier deployment (Koyeb + Cloudflare Pages + Neon)
+
+For a synthetic demo only: free Koyeb instances are not production-grade and have no backups.
+The API runs the job worker in-process because Koyeb's free instance cannot be a Worker Service.
+
+1. **Database — Neon.** Create a project in `eu-central-1` (Frankfurt) and copy the **direct**
+   (unpooled) connection string. Migrate from your machine:
+
+   ```powershell
+   $env:DATABASE_URL = "postgresql+psycopg://USER:PASSWORD@HOST/neondb?sslmode=require"
+   cd apps/api
+   .\.venv\Scripts\python.exe -m alembic upgrade head
+   .\.venv\Scripts\python.exe seed.py   # optional synthetic demo data
+   ```
+
+2. **API — Koyeb.** Create a Web Service from this repository with Dockerfile
+   `apps/api/Dockerfile`, instance type `free`, region `fra` (Frankfurt), port `8000`, and an
+   HTTP health check on `/ready`. Set:
+
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | Neon direct URL, `sslmode=require` |
+   | `SECRET_KEY` | long random string |
+   | `ENVIRONMENT` | `production` |
+   | `CORS_ORIGINS` | `https://<project>.pages.dev` |
+   | `WORKER_IN_PROCESS` | `true` |
+   | `WORKER_POLL_SECONDS` | `15` |
+
+3. **Web — Cloudflare Pages.** Root directory `apps/web`, build command
+   `npm ci && npm run build`, output directory `dist`. Set
+   `VITE_API_URL=https://<service>.koyeb.app/api/v1` as a build-time variable, then rebuild:
+   Vite bakes it into the bundle.
+
+4. **CORS.** After Pages assigns its URL, set `CORS_ORIGINS` to that exact origin and redeploy
+   the API. Wildcards are not valid with credentialed CORS.
+
+5. **Smoke test.** `GET /health` and `GET /ready` on the API, then sign in, upload a file, and
+   confirm the queued reconciliation job completes. A cold start can take up to a minute.
+
 ## Repository guide
 
 ```text

@@ -1,8 +1,10 @@
 import json
 import logging
+import threading
 import time
 import uuid
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -32,7 +34,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mineassure")
 
-app = FastAPI(title="MineAssure API", version="0.1.0")
+
+def _worker_loop(stop: threading.Event, interval: float) -> None:
+    """Drain the job queue in-process. Free hosts cannot run a Worker Service."""
+    try:
+        from app.worker import run_once
+    except Exception:  # pragma: no cover - startup misconfiguration
+        logger.exception("In-process worker could not start")
+        return
+    logger.info("In-process worker started (poll=%ss)", interval)
+    while not stop.is_set():
+        try:
+            run_once()
+        except Exception:
+            logger.exception("In-process worker iteration failed")
+        stop.wait(interval)
+    logger.info("In-process worker stopped")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    stop = threading.Event()
+    thread = None
+    if settings.worker_in_process:
+        interval = float(max(1, settings.worker_poll_seconds))
+        thread = threading.Thread(
+            target=_worker_loop,
+            args=(stop, interval),
+            name="mineassure-worker",
+            daemon=True,
+        )
+        thread.start()
+    try:
+        yield
+    finally:
+        if thread is not None:
+            stop.set()
+            thread.join(timeout=5)
+
+
+app = FastAPI(title="MineAssure API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
