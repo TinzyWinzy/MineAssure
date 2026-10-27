@@ -31,16 +31,23 @@ def test_concurrent_worker_claim_has_one_owner(migrated_database):
 
     def claim(_):
         barrier.wait(timeout=10)
-        return claim_job(lambda: Session(engine))
+        return claim_job(lambda: Session(engine), only_job_id=job_id)
 
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        outcomes = list(pool.map(claim, range(2)))
-    assert sum(outcome is not None for outcome in outcomes) == 1
-    with Session(engine) as db:
-        job = db.get(JobRun, job_id)
-        assert job.status == "running" and job.attempts == 1
-        job.status = "failed"
-        db.commit()
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            outcomes = list(pool.map(claim, range(2)))
+        claimed = [outcome for outcome in outcomes if outcome and outcome[0] == job_id]
+        assert len(claimed) == 1
+        with Session(engine) as db:
+            job = db.get(JobRun, job_id)
+            assert job.status == "running" and job.attempts == 1
+    finally:
+        # This test commits outside the rollback fixture; never leak a claimable job.
+        with Session(engine) as db:
+            job = db.get(JobRun, job_id)
+            if job is not None:
+                job.status = "failed"
+                db.commit()
 
 
 def test_concurrent_allocation(migrated_database):

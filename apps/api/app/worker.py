@@ -26,21 +26,22 @@ MAX_ATTEMPTS = 3
 LEASE_SECONDS = 300
 
 
-def claim_job(session_factory=SessionLocal, now=None):
+def claim_job(session_factory=SessionLocal, now=None, only_job_id=None):
+    """Claim the oldest eligible job; ``only_job_id`` targets one job (ops/tests)."""
     now = now or datetime.now(UTC)
     with session_factory() as db, db.begin():
-        jobs = (
-            db.query(JobRun)
-            .filter(
-                JobRun.kind == "reconciliation",
-                JobRun.org_id.is_not(None),
-                or_(
-                    and_(JobRun.status == "queued", JobRun.available_at <= now),
-                    and_(JobRun.status == "running", JobRun.lease_until <= now),
-                ),
-            )
-            .order_by(JobRun.created_at, JobRun.id)
-            .with_for_update(skip_locked=True)
+        query = db.query(JobRun).filter(
+            JobRun.kind == "reconciliation",
+            JobRun.org_id.is_not(None),
+            or_(
+                and_(JobRun.status == "queued", JobRun.available_at <= now),
+                and_(JobRun.status == "running", JobRun.lease_until <= now),
+            ),
+        )
+        if only_job_id is not None:
+            query = query.filter(JobRun.id == only_job_id)
+        jobs = query.order_by(JobRun.created_at, JobRun.id).with_for_update(
+            skip_locked=True
         )
         for job in jobs:
             if job.attempts >= MAX_ATTEMPTS:
@@ -142,8 +143,8 @@ def process_claim(claim, session_factory=SessionLocal):
         return False
 
 
-def run_once(session_factory=SessionLocal):
-    claim = claim_job(session_factory)
+def run_once(session_factory=SessionLocal, only_job_id=None):
+    claim = claim_job(session_factory, only_job_id=only_job_id)
     if claim:
         process_claim(claim, session_factory)
     return claim is not None

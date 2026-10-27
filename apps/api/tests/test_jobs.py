@@ -34,7 +34,7 @@ def test_job_replay_commits_one_run_and_one_allocation(client, db, pilot):
     assert enqueue(client, pilot, invoice).json()["id"] == job_id
     assert enqueue(client, pilot, invoice, key="different").json()["id"] == job_id
     sessions = factory(db)
-    claim = claim_job(sessions)
+    claim = claim_job(sessions, only_job_id=job_id)
     assert claim and claim[0] == job_id
     with sessions() as check:
         saved = check.get(JobRun, job_id)
@@ -63,8 +63,12 @@ def test_expired_claim_is_recovered_and_old_owner_cannot_post(client, db, pilot)
     pilot["evidence"]()
     job_id = enqueue(client, pilot, invoice).json()["id"]
     sessions = factory(db)
-    first = claim_job(sessions)
-    second = claim_job(sessions, now=datetime.now(UTC) + timedelta(minutes=6))
+    first = claim_job(sessions, only_job_id=job_id)
+    second = claim_job(
+        sessions,
+        now=datetime.now(UTC) + timedelta(minutes=6),
+        only_job_id=job_id,
+    )
     assert first[0] == second[0] == job_id and first[1] != second[1]
     assert not process_claim(first, sessions)
     assert process_claim(second, sessions)
@@ -77,7 +81,7 @@ def test_job_reauthorizes_revoked_actor(client, db, pilot):
     job_id = enqueue(client, pilot, invoice).json()["id"]
     db.query(Membership).filter_by(user_id=pilot["users"]["ap_analyst"]).delete()
     db.flush()
-    assert run_once(factory(db))
+    assert run_once(factory(db), only_job_id=job_id)
     db.expire_all()
     job = db.get(JobRun, job_id)
     assert job.status == "failed"
@@ -104,14 +108,19 @@ def test_worker_failure_rolls_back_and_retries(client, db, pilot, monkeypatch):
 
     monkeypatch.setattr(worker, "reconcile_invoice", fail_after_posting)
     sessions = factory(db)
-    assert not process_claim(claim_job(sessions), sessions)
+    assert not process_claim(claim_job(sessions, only_job_id=job_id), sessions)
     db.expire_all()
     assert db.get(JobRun, job_id).status == "queued"
     assert db.query(ReconciliationRun).filter_by(invoice_id=invoice.id).count() == 0
     assert db.query(EvidenceAllocation).filter_by(work_record_id=work.id).count() == 0
     monkeypatch.setattr(worker, "reconcile_invoice", actual)
     assert process_claim(
-        claim_job(sessions, now=datetime.now(UTC) + timedelta(seconds=10)), sessions
+        claim_job(
+            sessions,
+            now=datetime.now(UTC) + timedelta(seconds=10),
+            only_job_id=job_id,
+        ),
+        sessions,
     )
     assert db.query(ReconciliationRun).filter_by(invoice_id=invoice.id).count() == 1
 
@@ -122,15 +131,24 @@ def test_worker_crash_retry_limit_and_changed_input(client, db, pilot):
     sessions = factory(db)
     for attempt in range(3):
         assert claim_job(
-            sessions, now=datetime.now(UTC) + timedelta(minutes=6 * attempt)
+            sessions,
+            now=datetime.now(UTC) + timedelta(minutes=6 * attempt),
+            only_job_id=job_id,
         )
-    assert claim_job(sessions, now=datetime.now(UTC) + timedelta(minutes=20)) is None
+    assert (
+        claim_job(
+            sessions,
+            now=datetime.now(UTC) + timedelta(minutes=20),
+            only_job_id=job_id,
+        )
+        is None
+    )
     db.expire_all()
     assert db.get(JobRun, job_id).status == "failed"
     new_job = enqueue(client, pilot, invoice, key="new-request").json()["id"]
     invoice.currency = "OTHER"
     db.flush()
-    assert run_once(sessions)
+    assert run_once(sessions, only_job_id=new_job)
     db.expire_all()
     assert db.get(JobRun, new_job).status == "failed"
     assert "changed" in json.loads(db.get(JobRun, new_job).result)["message"]
