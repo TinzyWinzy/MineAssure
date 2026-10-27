@@ -81,6 +81,29 @@ npm run build
 
 Read CI and the implementation-status report for the test database setup and any checks not yet executed. Tests on SQLite alone do not establish PostgreSQL allocation locking behavior.
 
+## Formatting, hooks and CI
+
+Formatting is enforced so diffs stay small and reviewable.
+
+```bash
+# apps/web
+npm run format        # rewrite
+npm run format:check  # verify (used by CI)
+```
+
+Enable the versioned pre-commit hook once per clone. It blocks commits containing
+unformatted web or Python changes:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+CI (`.github/workflows/ci.yml`) runs on every push and pull request:
+
+- **web** — `oxlint`, `prettier --check`, `vite build`
+- **api** — `ruff check`, `ruff format --check`
+- **api-tests** — `pytest` against a PostgreSQL 16 service container
+
 ## Repository guide
 
 ```text
