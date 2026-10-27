@@ -144,6 +144,14 @@ The API runs the job worker in-process because Koyeb's free instance cannot be a
 5. **Smoke test.** `GET /health` and `GET /ready` on the API, then sign in, upload a file, and
    confirm the queued reconciliation job completes. A cold start can take up to a minute.
 
+### Option: deploy a prebuilt image
+
+Every push to `main` publishes `ghcr.io/<owner>/mineassure-api:latest` and
+`ghcr.io/<owner>/mineassure-api:sha-<sha>` after lint and tests pass. In Koyeb, choose
+**Docker image** instead of building from source, and use the `sha-` tag for reproducible
+deploys. Make the package public (GitHub → Packages → `mineassure-api` → Settings → Change
+visibility) or add a Koyeb registry credential with `read:packages`.
+
 ## Repository guide
 
 ```text
