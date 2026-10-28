@@ -10,9 +10,10 @@ System: http://127.0.0.1:5173 — all personas use password `demo`.
 | API `/health`, `/ready` | ok / ready |
 | Web on 5173 | HTTP 200 |
 | Worker | Alive; processed a test job and correctly rejected a decided invoice |
-| Demo data | 4 invoices, 3 reconciled, 1 approval, 1 export |
+| Demo data | 4 invoices, 3 reconciled; approval recorded on `ACME-2026-041` (34,800); export still open |
+| Dashboard | invoiced 87,200 · supported 34,800 · unverified 47,200 · variance 5,200 · **approved 34,800** |
 
-Note: the running stack is on migration 0009 (pre-purge code). Do not restart it before the call; restarting requires `alembic upgrade head` in `apps/api` first.
+Note: the stack is on migration **0010** with the purge and signing-key changes. Approval for `ACME-2026-041` is already recorded at run version 2. **Do not click Approve again** — it returns "Line already has an immutable decision". The export is still available and is the only live finance action in step 6.
 
 ## Before you share
 
@@ -30,7 +31,7 @@ Note: the running stack is on migration 0009 (pre-purge code). Do not restart it
 | 3 | same | Reconcile → wait for completed → open outcomes | "160 hours invoiced, 145 attested, 5,200 variance counted once." |
 | 4 | same | Point at formula steps and frozen sources | "This is the evidence a modeller or auditor can follow." |
 | 5 | same | Open `ACME-2026-042` | "2,400 unverified. Not an overcharge — the evidence is missing." |
-| 6 | `finance@demo.local` | Approve a partial amount, then export | "A different person decides. The export carries the run and approval hashes." |
+| 6 | `finance@demo.local` | Show the recorded 34,800 approval, then Export approved costs | "A different person decided. The export carries the run and approval hashes." |
 | 7 | same | Audit trail | "Every action is attributable. Nothing here is reconstructed." |
 
 Stop at seven. If he asks about admin, files, or integrations, answer verbally and move on.
