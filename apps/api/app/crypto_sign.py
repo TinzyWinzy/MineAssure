@@ -13,7 +13,7 @@ import hashlib
 from typing import cast
 
 from cryptography.exceptions import InvalidSignature
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.ec import (
@@ -24,10 +24,30 @@ from cryptography.hazmat.primitives.asymmetric.ec import (
 from app.config import settings
 
 
-def _fernet() -> Fernet:
-    digest = hashlib.sha256(settings.secret_key.encode("utf-8")).digest()
+def _fernet(secret: str | None = None) -> Fernet:
+    material = secret or settings.signing_key_secret or settings.secret_key
+    digest = hashlib.sha256(material.encode("utf-8")).digest()
     key = base64.urlsafe_b64encode(digest)
     return Fernet(key)
+
+
+def _decrypt(encrypted_pem: str) -> str:
+    """Decrypt with the signing secret, falling back to SECRET_KEY outside production.
+
+    The fallback keeps pre-existing development keys readable. Production refuses
+    to reuse the session secret and therefore has no fallback.
+    """
+    attempts = [_fernet()]
+    if settings.environment != "production" and settings.signing_key_secret:
+        attempts.append(_fernet(settings.secret_key))
+    for fernet in attempts:
+        try:
+            return fernet.decrypt(encrypted_pem.encode("ascii")).decode("ascii")
+        except InvalidToken:
+            continue
+    raise ValueError(
+        "signing key could not be decrypted with the configured signing secret"
+    )
 
 
 def generate_keypair() -> tuple[str, str]:
@@ -51,7 +71,7 @@ def generate_keypair() -> tuple[str, str]:
 
 
 def _load_private(encrypted_pem: str):
-    private_pem = _fernet().decrypt(encrypted_pem.encode("ascii")).decode("ascii")
+    private_pem = _decrypt(encrypted_pem)
     return serialization.load_pem_private_key(
         private_pem.encode("ascii"), password=None
     )

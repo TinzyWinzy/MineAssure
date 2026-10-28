@@ -52,3 +52,21 @@ Executed against native PostgreSQL after migration 0006:
 | OpenAPI | Regenerated with CRUD, ingestion and mathematical-output routes. |
 
 Verified screenshot: `screenshots/file-ingestion-outcomes.png`. Usage guide: `operating-workflows.md`. Limits remain explicit: XLSX first worksheet, reviewed values, 2 MiB / 500 rows; no PDF/OCR or large asynchronous file ingestion is claimed. Production document storage/scanning, identity and customer deployment remain separate gates.
+
+## Data hygiene and key custody - 28 October 2026
+
+Scope: data classification, original-file purge, removal of the unimplemented scan flag, and separation of the signing-key encryption secret. Executed on Windows against native PostgreSQL 16 on port 5432 (test database `mineassure_test`).
+
+| Check | Actual result |
+| --- | --- |
+| `pytest -q` | 138 passed in 420.66 s; one upstream Starlette/httpx deprecation warning. |
+| `ruff check app tests` | All checks passed. |
+| `ruff format --check app tests` | 42 files already formatted. |
+| `alembic check` at revision 0010 | No new upgrade operations detected. |
+| `mypy app/engine.py` | Success: no issues found in 1 source file. |
+| `npm run lint` and `npm run build` | Passed; 28 modules transformed, bundle 286.39 kB (84.62 kB gzip). |
+| Playwright journeys | Not rerun. A development stack already listening on 5173/8000 was running pre-change code; restarting it would disrupt the operator's running demo. |
+
+New coverage: purge requires an imported batch and the tenant administrator role; purge is idempotent; original bytes are cleared while checksum, processed rows, record links and a single audit event remain; the source download returns 410. Production settings reject a missing signing secret and a signing secret equal to `SECRET_KEY`. Development keys encrypted before the change remain readable through the dev/test-only fallback.
+
+Residual: no automatic retention schedule, no malware scanner, no database RLS, and signing keys remain under server-side custody. See `data-classification.md`.

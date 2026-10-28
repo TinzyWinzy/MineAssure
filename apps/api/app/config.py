@@ -8,6 +8,7 @@ class Settings(BaseSettings):
         "postgresql+psycopg://mineassure:mineassure@localhost:5432/mineassure"
     )
     secret_key: str = "change-me"
+    signing_key_secret: str | None = None
     environment: str = "development"
     api_prefix: str = "/api/v1"
     cors_origins: str = "http://localhost:5173"
@@ -19,6 +20,13 @@ class Settings(BaseSettings):
         if self.environment == "production":
             if self.secret_key == "change-me":
                 raise ValueError("secret_key must be set in production")
+            if not self.signing_key_secret or self.signing_key_secret == "change-me":
+                raise ValueError("signing_key_secret must be set in production")
+            if self.signing_key_secret == self.secret_key:
+                raise ValueError(
+                    "signing_key_secret must differ from secret_key; session and "
+                    "signature key material must not share one secret"
+                )
             if "mineassure:mineassure@" in self.database_url:
                 raise ValueError(
                     "default database credentials must not be used in production"

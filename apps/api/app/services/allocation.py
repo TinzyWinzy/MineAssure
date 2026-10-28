@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import EvidenceAllocation, EvidenceFile, WorkRecord
+from app.models import EvidenceAllocation, WorkRecord
 
 
 def allocated_quantity(db: Session, work_record_id: str) -> Decimal:
@@ -37,11 +37,6 @@ def reserve_allocation(
         raise ValueError("work record not found")
     if wr.status != "attested":
         raise ValueError("work record is not attested")
-    # Quarantine gate: never allocate evidence flagged as infected.
-    if wr.evidence_file_id:
-        ef = db.get(EvidenceFile, wr.evidence_file_id)
-        if ef is not None and ef.scan_status == "infected":
-            raise ValueError("evidence file is quarantined (infected)")
     used = allocated_quantity(db, work_record_id)
     remaining = Decimal(str(wr.quantity)) - used
     if qty > remaining:

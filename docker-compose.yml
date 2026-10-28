@@ -27,6 +27,7 @@ services:
       DATABASE_URL: postgresql+psycopg://mineassure:mineassure@postgres:5432/mineassure
       ENVIRONMENT: development
       SECRET_KEY: ${SECRET_KEY:-mineassure-local-synthetic-demo-only-2026}
+      SIGNING_KEY_SECRET: ${SIGNING_KEY_SECRET:-mineassure-local-signing-demo-only-2026}
       CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
     command: ["sh", "-c", "alembic upgrade head && python seed.py && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
     ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
@@ -42,6 +43,7 @@ services:
       DATABASE_URL: postgresql+psycopg://mineassure:mineassure@postgres:5432/mineassure
       ENVIRONMENT: development
       SECRET_KEY: ${SECRET_KEY:-mineassure-local-synthetic-demo-only-2026}
+      SIGNING_KEY_SECRET: ${SIGNING_KEY_SECRET:-mineassure-local-signing-demo-only-2026}
     command: ["python", "-m", "app.worker"]
     depends_on: { api: { condition: service_healthy } }
   web:

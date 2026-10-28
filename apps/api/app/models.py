@@ -163,9 +163,8 @@ class EvidenceFile(Base):
     mime_type = Column(String, nullable=True)
     size_bytes = Column(Integer, nullable=True)
     sha256 = Column(String, nullable=False)
-    scan_status = Column(
-        String, nullable=False, default="pending"
-    )  # pending/clean/infected
+    # No scanner is implemented. Quarantine state must not be implied by a column
+    # whose only value would be an unverified default.
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -231,6 +230,8 @@ class ImportBatch(Base):
     normalized_json = Column(Text, nullable=True)
     errors_json = Column(Text, nullable=True)
     created_by = Column(String, nullable=True)
+    purged_at = Column(DateTime(timezone=True), nullable=True)
+    purged_by = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -24,6 +24,7 @@ Use **Files** in navigation, or expand **Import CSV / XLSX with validation and o
 5. Resolve any row/field errors before committing. The whole batch is rejected if any row is invalid; no partial records are accepted.
 6. Click **Import … validated rows**. Invoice rows group by supplier invoice number; work rows become unattested records. Created-record buttons open their details/review. Repeating upload/commit returns the existing batch rather than duplicating records.
 7. Download the original bytes, processed rows and validation output from the results panel. File history retains status, checksum, associated contract and created records.
+8. A tenant administrator can purge the original file content once the batch is imported. Checksum, processed rows, errors, created-record links and the audit event are retained; the source download then returns 410. Purge is manual and per batch; no retention schedule is enforced. See [data classification](data-classification.md).
 
 Imports preserve original bytes/hash and lineage from invoice/work record to file. Processed rows are canonical data, not payment authority. Files are kept in PostgreSQL for the bounded local workflow; there is no claim of production document quarantine/private object storage or large asynchronous ingestion.
 
@@ -47,7 +48,7 @@ Download **outcomes CSV** for line amounts and **full report** for formulas, fro
 
 - `GET /records/{kind}/{id}` exposes associations and edit/delete policy; `PUT /{kind}/{id}` edits allowed drafts using `expected_revision`.
 - `DELETE /{kind}/{id}` and `/records/{kind}/{id}` delete eligible unused records with org/site/revision query parameters.
-- `/ingestion/{kind}/stage`, `/{id}/validate`, `/{id}/commit` implement staged file processing. `/{id}/download/source`, `/normalized`, `/errors` return outputs.
+- `/ingestion/{kind}/stage`, `/{id}/validate`, `/{id}/commit` implement staged file processing. `/{id}/download/source`, `/normalized`, `/errors` return outputs. `/{id}/purge` removes original bytes after import (tenant administrator only).
 - `/reconciliation/runs/{id}/outcomes` and `/report?format=csv|json` expose calculated outcomes and frozen provenance.
 
 Every business endpoint enforces current identity, tenant, site and role on the server. OpenAPI contains exact schemas.

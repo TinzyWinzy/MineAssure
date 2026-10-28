@@ -19,6 +19,7 @@ export function FileCenter(
   const [contractId, setContractId] = useState('')
   const [error, setError] = useState('')
   const [source, setSource] = useState<{ kind: string; id: string } | null>(null)
+  const [confirmPurge, setConfirmPurge] = useState(false)
   const [version, setVersion] = useState(0)
   const { data: contracts, error: contractError } = useRemote(
     `/contracts?${p.query}&limit=200`,
@@ -33,6 +34,7 @@ export function FileCenter(
   const canUpload = p.can(kind === 'invoice' ? 'ap_analyst' : 'operations_verifier', 'tenant_admin')
   function show(data: Row) {
     setBatch(data)
+    setConfirmPurge(false)
     setMapping(
       Object.fromEntries(
         data.required_columns.map((column: string) => [
@@ -290,17 +292,21 @@ export function FileCenter(
               </div>
             )}
             <div className="button-group file-outputs">
-              <button
-                onClick={() =>
-                  p.act(
-                    () =>
-                      download(`/ingestion/${batch.id}/download/source`, p.token, batch.filename),
-                    'Original file downloaded.'
-                  )
-                }
-              >
-                Download original file
-              </button>
+              {batch.source_retained ? (
+                <button
+                  onClick={() =>
+                    p.act(
+                      () =>
+                        download(`/ingestion/${batch.id}/download/source`, p.token, batch.filename),
+                      'Original file downloaded.'
+                    )
+                  }
+                >
+                  Download original file
+                </button>
+              ) : (
+                <span className="muted policy-note">Original file purged; checksum retained.</span>
+              )}
               <button
                 onClick={() =>
                   p.act(
@@ -350,6 +356,27 @@ export function FileCenter(
               </div>
             )}
             <small className="mono">Original SHA-256: {batch.sha256}</small>
+            {batch.source_retained && batch.status === 'imported' && p.can('tenant_admin') && (
+              <button className="danger-text" onClick={() => setConfirmPurge(true)}>
+                Purge original file
+              </button>
+            )}
+            {confirmPurge && (
+              <div className="delete-confirm" role="alert">
+                <p>
+                  Purge the original file content? Checksum, processed rows, created records and the
+                  audit event remain; the original cannot be downloaded again.
+                </p>
+                <button
+                  className="danger"
+                  disabled={processing}
+                  onClick={() => perform(() => api(`/ingestion/${batch.id}/purge`, p.token, {}))}
+                >
+                  Purge original file
+                </button>
+                <button onClick={() => setConfirmPurge(false)}>Cancel</button>
+              </div>
+            )}
           </div>
         </section>
       )}

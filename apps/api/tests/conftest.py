@@ -94,6 +94,7 @@ def pilot(db):
     users = {}
     password = hash_password("demo")
     for role in (
+        "tenant_admin",
         "ap_analyst",
         "finance_approver",
         "auditor",

@@ -5,7 +5,7 @@ import hashlib
 import io
 import json
 import re
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import PurePath
 from xml.etree.ElementTree import ParseError
 from zipfile import BadZipFile, ZipFile
@@ -174,6 +174,9 @@ def batch_detail(db, batch):
         "contract": fields(db.get(Contract, meta["contract_id"]), "id", "title")
         if meta.get("contract_id") and db.get(Contract, meta["contract_id"])
         else None,
+        "source_retained": batch.purged_at is None,
+        "purged_at": batch.purged_at.isoformat() if batch.purged_at else None,
+        "purged_by": batch.purged_by,
     }
 
 
@@ -425,6 +428,37 @@ def commit_file(
     return batch_detail(db, batch)
 
 
+@router.post("/{batch_id}/purge")
+def purge_source(
+    batch_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """Remove original uploaded bytes after import; keep checksum and lineage."""
+    batch = db.query(ImportBatch).filter_by(id=batch_id).with_for_update().first()
+    entity_scope(db, user, batch, "tenant_admin")
+    if batch.purged_at is not None:
+        return batch_detail(db, batch)
+    if batch.status != "imported":
+        raise HTTPException(
+            409, "Only imported batches can be purged; commit or discard the batch"
+        )
+    size = len(batch.source_bytes or b"") or len(
+        (batch.source_text or "").encode("utf-8")
+    )
+    batch.source_bytes = None
+    batch.source_text = None
+    batch.purged_at = datetime.now(UTC)
+    batch.purged_by = user.id
+    audit(
+        db,
+        user,
+        batch,
+        "file.source_purged",
+        {"sha256": batch.sha256, "bytes": size},
+    )
+    db.commit()
+    return batch_detail(db, batch)
+
+
 def csv_bytes(headers, rows):
     stream = io.StringIO(newline="")
     writer = csv.writer(stream)
@@ -472,6 +506,11 @@ def file_download(
     meta = json.loads(batch.errors_json or "{}")
     data = json.loads(batch.normalized_json or "{}")
     if artifact == "source":
+        if batch.purged_at is not None:
+            raise HTTPException(
+                410,
+                "Original file content was purged; checksum and processed rows remain",
+            )
         content = batch.source_bytes or (batch.source_text or "").encode()
         filename = re.sub(r"[^A-Za-z0-9_.-]", "_", batch.filename)
         mime = "application/octet-stream"

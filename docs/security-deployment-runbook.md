@@ -4,7 +4,11 @@
 
 Use `pwsh -File scripts/start-local.ps1` after the prerequisites in [local development](local-development.md). Native PostgreSQL, API, worker and Vite bind to loopback; development credentials live in ignored `.local/config.json`. Inspect `.local/*-error.log` and `/ready`. Stop with `pwsh -File scripts/stop-local.ps1`; local database files remain. Docker is bypassed in the current workflow. The retained Compose configuration is an optional unverified alternative.
 
-Set secrets in a secret manager for any authorized hosted deployment and remove seeded credentials from hosted environments.
+Set secrets in a secret manager for any authorized hosted deployment and remove seeded credentials from hosted environments. `SIGNING_KEY_SECRET` must be set separately from `SECRET_KEY`; the API refuses to start in production if they match or the signing secret is missing. Server-side key custody still permits signature forgery by anyone holding the database and that secret.
+
+## Source retention purge
+
+`POST /api/v1/ingestion/{batch_id}/purge` lets a tenant administrator remove the original uploaded bytes after import. Checksum, normalised rows, validation errors, created-record links and an audit event remain. Source download returns 410 afterwards. Staged or validated batches cannot be purged, no retention period is enforced automatically, and audit records are not deletable. See [data classification](data-classification.md).
 
 ## Backup and restore rehearsal
 

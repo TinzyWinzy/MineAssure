@@ -17,6 +17,28 @@
             ],
             "title": "Amount"
           },
+          "client_public_key_spki": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Public Key Spki"
+          },
+          "client_signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Signature"
+          },
           "decision": {
             "enum": [
               "approved",
@@ -1007,6 +1029,19 @@
         "title": "ReconciliationJobIn",
         "type": "object"
       },
+      "RegisterKeyIn": {
+        "properties": {
+          "spki_b64": {
+            "title": "Spki B64",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spki_b64"
+        ],
+        "title": "RegisterKeyIn",
+        "type": "object"
+      },
       "SiteIn": {
         "additionalProperties": false,
         "properties": {
@@ -1120,6 +1155,29 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerifyIn": {
+        "properties": {
+          "payload": {
+            "title": "Payload",
+            "type": "string"
+          },
+          "signature_b64": {
+            "title": "Signature B64",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "payload",
+          "signature_b64"
+        ],
+        "title": "VerifyIn",
         "type": "object"
       },
       "VersionIn": {
@@ -3521,6 +3579,52 @@
         ]
       }
     },
+    "/api/v1/ingestion/{batch_id}/purge": {
+      "post": {
+        "description": "Remove original uploaded bytes after import; keep checksum and lineage.",
+        "operationId": "purge_source_api_v1_ingestion__batch_id__purge_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "batch_id",
+            "required": true,
+            "schema": {
+              "title": "Batch Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Purge Source",
+        "tags": [
+          "file processing"
+        ]
+      }
+    },
     "/api/v1/ingestion/{batch_id}/validate": {
       "post": {
         "operationId": "validate_file_api_v1_ingestion__batch_id__validate_post",
@@ -4438,6 +4542,89 @@
         ]
       }
     },
+    "/api/v1/signing/keys": {
+      "post": {
+        "operationId": "register_key_api_v1_signing_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterKeyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Register Key",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
+    "/api/v1/signing/verify": {
+      "post": {
+        "operationId": "verify_api_v1_signing_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify",
+        "tags": [
+          "signing"
+        ]
+      }
+    },
     "/api/v1/sites": {
       "get": {
         "operationId": "sites_api_v1_sites_get",
@@ -4476,6 +4663,22 @@
           }
         },
         "summary": "Health"
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics"
       }
     },
     "/ready": {

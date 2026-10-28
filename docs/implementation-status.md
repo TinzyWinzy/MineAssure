@@ -10,7 +10,7 @@ Updated: 26 October 2026. Release: **verified synthetic local pilot; not a produ
 - PostgreSQL allocation locking, frozen reconciliation snapshots/hashes, supersession/release, immutable decisions, partial approval, export idempotency and artifact hash verification. Malformed or legacy provenance is quarantined.
 - Durable reconciliation worker: scoped jobs, immutable invoice input identity, execution-time authorization, SKIP LOCKED claims, lease tokens/expiry, three-attempt retry bound, atomic reconciliation/completion, crash recovery and dead-letter status. UI polls job progress.
 - Draft CRUD for suppliers, contract terms, unattested evidence and unassessed invoices, including line add/edit/remove and contract associations. Revision conflicts, finalized history and referenced deletions are protected and audited.
-- Files workspace: staged CSV/XLSX upload, column mapping, preview, row/field validation, atomic commit, created-record associations and original/processed/error downloads. Original bytes/checksum and input lineage are retained. Separate independent verifier account included.
+- Files workspace: staged CSV/XLSX upload, column mapping, preview, row/field validation, atomic commit, created-record associations and original/processed/error downloads. Original bytes/checksum and input lineage are retained. A tenant administrator can purge original bytes after import while checksum, processed rows, errors, record links and audit history remain. Separate independent verifier account included.
 - Mathematical outcomes: explicit formula steps, amount conservation, frozen invoice/contract/evidence sources, verifier and review provenance, linked-record navigation and CSV/JSON outcome reports.
 - Native Windows PostgreSQL/API/worker/web startup, stop and verification scripts. Docker is bypassed per user direction; retained Compose configuration is optional and unverified in this revision.
 - Native snapshot-consistent backup/restore rehearsal, measured persisted reconciliation benchmark, refreshed OpenAPI, example inputs, financial semantics, threat model, UAT and deployment documentation.
@@ -48,5 +48,20 @@ Backup identifiers and exact reference environment are in `verification-delivery
 Production hosting approval, identity-provider provisioning, customer data-use permission, jurisdiction/tax/pricing policy sign-off, independently trusted operational sources, retention/SLA/monitoring, encrypted off-site scheduled backups and measured production RPO/RTO. No ERP, payment, Anaplan or telemetry integration is connected. Customer UAT and independent production security review are not complete.
 
 ## CRUD and file-processing correction (26 October 2026)
-
 The previous delivery lacked record edit/delete controls, staged file ingestion and visible calculation/source drill-through. These have now been implemented. See operating-workflows.md for the exact controls and workflow. The new backend tests cover allowed/stale/protected CRUD, edited-input separation of duties, XLSX/CSV mapping/atomic ingestion, output hashes, source associations, mathematical conservation and undetermined missing-evidence outcomes. Final browser results are recorded in verification-delivery.md.
+
+## Data hygiene and key custody (28 October 2026)
+
+- Added `docs/data-classification.md` with field-level levels (C1�?"C5), emitted-data inventory, retention notes and pre-customer open items.
+- Migration `0010` adds `import_batches.purged_at/purged_by` and removes `evidence_files.scan_status`. The flag implied malware scanning that no code performed; the table has no writer. Quarantine must return with a real scanner and writer.
+- `POST /api/v1/ingestion/{batch_id}/purge` (tenant administrator) removes original bytes after import, keeps checksum/processed rows/errors/record links, writes a `file.source_purged` audit event, is idempotent, and makes the source download return 410. Staged/validated batches are refused. UI control added to the Files results panel.
+- Signing-key encryption is now separated from the session secret: `SIGNING_KEY_SECRET` is required in production and must differ from `SECRET_KEY`. Existing development keys remain readable through a dev/test-only fallback; production has none. This remains server-side custody, not user-held non-repudiation.
+
+| Check (28 October 2026) | Result |
+| --- | --- |
+| `pytest -q` | **138 passed**, one upstream Starlette/httpx deprecation warning. Includes purge authorization/lineage/410 tests and signing-secret configuration tests. |
+| `ruff check app tests`, `ruff format --check app tests` | Passed; 42 files already formatted. |
+| `alembic check` against migrated `mineassure_test` | **No new upgrade operations detected.** |
+| `mypy app/engine.py` | Success: no issues found in 1 source file. |
+| `npm run format`, `npm run lint`, `npm run build` | Passed; TypeScript/Vite build produced 28 modules with no lint findings. |
+| Playwright journeys | **Not rerun** for this change. A development stack was already listening on 5173/8000 running pre-change code; restarting it was left to the operator. |

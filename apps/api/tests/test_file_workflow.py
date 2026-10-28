@@ -7,7 +7,7 @@ import pytest
 from openpyxl import Workbook
 from test_persistence import run_invoice
 
-from app.models import Invoice, WorkRecord
+from app.models import AuditEvent, ImportBatch, Invoice, WorkRecord
 
 
 def stage(client, pilot, raw, kind="evidence", filename="work.csv", role=None):
@@ -239,6 +239,55 @@ def test_missing_evidence_output_marks_variance_undetermined(client, pilot):
     ).json()
     assert report["totals"]["unverified_amount"] == "2400.00"
     assert report["lines"][0]["variance_determined"] is False
+
+
+def test_purge_removes_original_bytes_and_keeps_lineage(client, db, pilot):
+    raw = b"work_reference,work_code,quantity,service_date,unit\nPURGE-A,EQ-HIRE,10,2026-10-10,hour\n"
+    batch = stage(client, pilot, raw).json()
+    admin = pilot["headers"]("tenant_admin")
+    early = client.post(f"/api/v1/ingestion/{batch['id']}/purge", headers=admin)
+    assert early.status_code == 409
+    committed = client.post(
+        f"/api/v1/ingestion/{batch['id']}/commit",
+        json={},
+        headers=pilot["headers"]("operations_verifier"),
+    )
+    assert committed.status_code == 200, committed.text
+    assert (
+        client.post(
+            f"/api/v1/ingestion/{batch['id']}/purge",
+            headers=pilot["headers"]("auditor"),
+        ).status_code
+        == 403
+    )
+    purged = client.post(f"/api/v1/ingestion/{batch['id']}/purge", headers=admin)
+    assert purged.status_code == 200, purged.text
+    body = purged.json()
+    assert body["source_retained"] is False
+    assert body["purged_at"] and body["purged_by"] == pilot["users"]["tenant_admin"]
+    assert body["sha256"] == batch["sha256"]
+    assert db.get(ImportBatch, batch["id"]).source_bytes is None
+    assert (
+        client.get(
+            f"/api/v1/ingestion/{batch['id']}/download/source",
+            headers=pilot["headers"]("auditor"),
+        ).status_code
+        == 410
+    )
+    normalized = client.get(
+        f"/api/v1/ingestion/{batch['id']}/download/normalized",
+        headers=pilot["headers"]("auditor"),
+    )
+    assert normalized.status_code == 200 and "PURGE-A" in normalized.text
+    assert db.query(WorkRecord).filter_by(import_batch_id=batch["id"]).count() == 1
+    again = client.post(f"/api/v1/ingestion/{batch['id']}/purge", headers=admin)
+    assert again.status_code == 200 and again.json()["purged_at"] == body["purged_at"]
+    assert (
+        db.query(AuditEvent)
+        .filter_by(action="file.source_purged", entity_id=batch["id"])
+        .count()
+        == 1
+    )
 
 
 def test_blank_source_rows_do_not_shift_validation_error_numbers(client, pilot):

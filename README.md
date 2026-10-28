@@ -42,7 +42,7 @@ The seed organization is `org-demo`, site `site-1`, contractor `ctr-1`, contract
 
 Use [the walkthrough](docs/demo-walkthrough.md) and [UAT checklist](docs/UAT-checklist.md). The central fixture is 160 hours at $250 = $40,000 invoiced versus 145 independently attested hours at $240 = $34,800 provisionally supported. Quantified variance is $5,200 once. A separate missing-evidence invoice remains $2,400 unverified and cannot be approved as supported.
 
-Sample CSVs and their limits are documented in [import schema](docs/import-schema.md). API clients can inspect exact endpoint schemas through OpenAPI. The Files workspace supports staged CSV/XLSX upload, column mapping, preview, validation, atomic ingestion and downloadable source/processed/error outputs (2 MiB / 500 rows). Large asynchronous ingestion and document quarantine remain outstanding. See [operating workflows](docs/operating-workflows.md) for CRUD, associations and mathematical outcomes.
+Sample CSVs and their limits are documented in [import schema](docs/import-schema.md). API clients can inspect exact endpoint schemas through OpenAPI. The Files workspace supports staged CSV/XLSX upload, column mapping, preview, validation, atomic ingestion and downloadable source/processed/error outputs (2 MiB / 500 rows). A tenant administrator can purge original file bytes after import while checksum and lineage remain; see [data classification](docs/data-classification.md). Large asynchronous ingestion and document quarantine remain outstanding. See [operating workflows](docs/operating-workflows.md) for CRUD, associations and mathematical outcomes.
 
 ## Develop and verify locally
 
@@ -128,6 +128,7 @@ The API runs the job worker in-process because Koyeb's free instance cannot be a
    |---|---|
    | `DATABASE_URL` | Neon direct URL, `sslmode=require` |
    | `SECRET_KEY` | long random string |
+   | `SIGNING_KEY_SECRET` | different long random string (required; must differ from `SECRET_KEY`) |
    | `ENVIRONMENT` | `production` |
    | `CORS_ORIGINS` | `https://<project>.pages.dev` |
    | `WORKER_IN_PROCESS` | `true` |
