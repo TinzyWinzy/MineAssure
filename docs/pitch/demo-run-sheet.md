@@ -42,10 +42,12 @@ Stop at seven. If he asks about admin, files, or integrations, answer verbally a
 - **Login fails:** check `/ready` once. If it is down, switch to the deck's control-model slide and say the local demo is unavailable; do not improvise claims.
 - **He asks to see his own data:** say the pilot mapping is the next step, not a live improvisation.
 - **He asks for SSO / ERP / Anaplan integration:** "Not in the pilot. Scoped after the workflow is proven."
+- **He asks whether this competes with Anaplan:** "You plan, we prove. No connector today." Then ask: "Does this help your Anaplan engagements, or cannibalise them?"
 
 ## Lines to avoid
 
 - "Saves you X" / "recovers X" — say variance, unverified, approved.
 - "Production-ready", "enterprise-grade", "AI-powered".
 - "We integrate with Anaplan" — no connector exists.
+- "We're an Anaplan alternative" — adjacent, not a replacement.
 - "We have clients" — no paying customers yet.
